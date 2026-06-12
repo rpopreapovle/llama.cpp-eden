@@ -3,6 +3,42 @@
 ![llama](https://raw.githubusercontent.com/ggml-org/llama.brand/refs/heads/master/cover/llama-cpp/cover-llama-cpp-dark.svg)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+## EDEN KV Cache Quantization
+
+AI-written implementation of EDEN quantized KV cache.
+
+Two new quantization types for the key-value cache:
+
+| Type | Bits | Enum | Block Size | Description |
+|------|------|------|------------|-------------|
+| `eden4` | 4 | `GGML_TYPE_EDEN4` | 32 | Lloyd-Max codebook (16 levels) + EDEN-biased optimal scale |
+| `eden3` | 3 | `GGML_TYPE_EDEN3` | 32 | Lloyd-Max codebook (8 levels) + EDEN-biased optimal scale |
+
+Based on [EDEN: Entropy-Driven EvNerating (ICML 2022)](https://arxiv.org/abs/2202.05845).
+
+### Usage
+
+```
+llama-server \
+  --cache-type-v eden4 \       # quantize value cache
+  --cache-type-k q8_0 \        # K cache recommended as F16 or q8_0
+  -fa on \                     # flash attention required for GPU
+  ...
+```
+
+For K cache with EDEN (CUDA flash attention only, converts to F16 internally):
+```
+  --cache-type-k eden3 --cache-type-v eden3
+```
+
+### Backend Support
+
+| Backend | get_rows | set_rows | Flash Attention |
+|---------|----------|----------|-----------------|
+| CPU     | Yes      | Yes      | Yes             |
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Release](https://img.shields.io/github/v/release/ggml-org/llama.cpp)](https://github.com/ggml-org/llama.cpp/releases)
 [![Server](https://github.com/ggml-org/llama.cpp/actions/workflows/server.yml/badge.svg)](https://github.com/ggml-org/llama.cpp/actions/workflows/server.yml)
 [![Docker](https://github.com/ggml-org/llama.cpp/actions/workflows/docker.yml/badge.svg)](https://github.com/ggml-org/llama.cpp/actions/workflows/docker.yml)

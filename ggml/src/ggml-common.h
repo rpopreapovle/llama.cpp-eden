@@ -157,6 +157,9 @@ typedef sycl::half2 ggml_half2;
 #define QI1_M (QK_K / (4*QR1_M))
 #define QR1_M 8
 
+#define QI_EDEN (QK_EDEN / (4))
+#define QR_EDEN 1
+
 #define QI4_NL (QK4_NL / (4*QR4_NL))
 #define QR4_NL 2
 
@@ -257,6 +260,24 @@ typedef struct {
     int8_t qs[QK8_1]; // quants
 } block_q8_1;
 static_assert(sizeof(block_q8_1) == 2*sizeof(ggml_half) + QK8_1, "wrong q8_1 block size/padding");
+
+//
+// EDEN quantization (Lloyd-Max codebook + optimal scale)
+//
+
+#define QK_EDEN 32
+
+typedef struct {
+    ggml_half d;           // combined scale (RMS * S_biased)
+    uint8_t qs[QK_EDEN/2]; // packed 4-bit Lloyd-Max indices
+} block_eden4;
+static_assert(sizeof(block_eden4) == sizeof(ggml_half) + QK_EDEN/2, "wrong eden4 block size/padding");
+
+typedef struct {
+    ggml_half d;           // combined scale (RMS * S_biased)
+    uint8_t qs[(QK_EDEN*3+7)/8]; // packed 3-bit Lloyd-Max indices (12 bytes)
+} block_eden3;
+static_assert(sizeof(block_eden3) == sizeof(ggml_half) + (QK_EDEN*3+7)/8, "wrong eden3 block size/padding");
 
 //
 // Ternary quantization

@@ -1744,6 +1744,89 @@ struct block_nvfp4_packed32
 #define A_TYPE_PACKED32 block_nvfp4_packed32
 #endif
 
+#define QUANT_K_EDEN4 32
+#define QUANT_R_EDEN4 1
+
+struct block_eden4
+{
+    float16_t d;
+    uint8_t qs[QUANT_K_EDEN4 / 2];
+};
+
+struct block_eden4_packed32
+{
+    float16_t d;
+    uint32_t qs[(QUANT_K_EDEN4 / 2) / 4];
+};
+
+#if defined(DATA_A_EDEN4)
+#define QUANT_K QUANT_K_EDEN4
+#define QUANT_R QUANT_R_EDEN4
+#define QUANT_AUXF 1
+#define A_TYPE block_eden4
+#define A_TYPE_PACKED32 block_eden4_packed32
+#endif
+
+#define QUANT_K_EDEN3 32
+#define QUANT_R_EDEN3 1
+
+struct block_eden3
+{
+    float16_t d;
+    uint8_t qs[(QUANT_K_EDEN3 * 3 + 7) / 8];
+};
+
+struct block_eden3_packed32
+{
+    float16_t d;
+    uint32_t qs[((QUANT_K_EDEN3 * 3 + 7) / 8) / 4];
+};
+
+#if defined(DATA_A_EDEN3)
+#define QUANT_K QUANT_K_EDEN3
+#define QUANT_R QUANT_R_EDEN3
+#define QUANT_AUXF 1
+#define A_TYPE block_eden3
+#define A_TYPE_PACKED32 block_eden3_packed32
+#endif
+
+#if defined(DATA_A_EDEN4) || defined(DATA_A_EDEN3)
+const float kvalues_eden4_const[16] = float[](
+    -2.2227, -1.7930, -1.4570, -1.1602,
+    -0.8828, -0.6191, -0.3652, -0.1172,
+     0.1172,  0.3652,  0.6191,  0.8828,
+     1.1602,  1.4570,  1.7930,  2.2227
+);
+
+const float kvalues_eden3_const[8] = float[](
+    -2.0829, -1.2597, -0.7247, -0.2332,
+     0.2332,  0.7247,  1.2597,  2.0829
+);
+
+#if defined(DATA_A_EDEN4)
+shared float kvalues_eden4[16];
+#endif
+#if defined(DATA_A_EDEN3)
+shared float kvalues_eden3[8];
+#endif
+
+#define NEEDS_INIT_IQ_SHMEM
+void init_iq_shmem(uvec3 wgsize)
+{
+#if defined(DATA_A_EDEN4)
+    for (uint i = gl_LocalInvocationIndex.x; i < 16u; i += wgsize.x) {
+        kvalues_eden4[i] = kvalues_eden4_const[i];
+    }
+#endif
+#if defined(DATA_A_EDEN3)
+    for (uint i = gl_LocalInvocationIndex.x; i < 8u; i += wgsize.x) {
+        kvalues_eden3[i] = kvalues_eden3_const[i];
+    }
+#endif
+    barrier();
+}
+#endif
+
 #if defined(DATA_A_IQ4_NL) || defined(DATA_A_IQ4_XS)
 const int8_t kvalues_iq4nl_const[16] = {
     int8_t(-127), int8_t(-104), int8_t(-83), int8_t(-65), int8_t(-49), int8_t(-35), int8_t(-22), int8_t(-10),

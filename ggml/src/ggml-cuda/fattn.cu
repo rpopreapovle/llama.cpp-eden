@@ -421,11 +421,12 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
             return BEST_FATTN_KERNEL_NONE;
     }
 
-#ifndef GGML_CUDA_FA_ALL_QUANTS
-    if (K->type != V->type) {
-        return BEST_FATTN_KERNEL_NONE;
-    }
-#endif // GGML_CUDA_FA_ALL_QUANTS
+    // VEC dequantize dispatch (get_dequantize_V) supports only specific V types
+    const bool v_supports_vec =
+        V->type == GGML_TYPE_F16 || V->type == GGML_TYPE_F32 ||
+        V->type == GGML_TYPE_Q4_0 || V->type == GGML_TYPE_Q4_1 ||
+        V->type == GGML_TYPE_Q5_0 || V->type == GGML_TYPE_Q5_1 ||
+        V->type == GGML_TYPE_Q8_0 || V->type == GGML_TYPE_BF16;
 
     switch (K->type) {
         case GGML_TYPE_F32:
@@ -440,10 +441,18 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
         case GGML_TYPE_Q4_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_BF16:
+        case GGML_TYPE_EDEN4:
+        case GGML_TYPE_EDEN3:
             break;
         default:
             return BEST_FATTN_KERNEL_NONE;
     }
+
+#ifndef GGML_CUDA_FA_ALL_QUANTS
+    if (K->type != V->type && v_supports_vec) {
+        return BEST_FATTN_KERNEL_NONE;
+    }
+#endif // GGML_CUDA_FA_ALL_QUANTS
 
     if (mask && mask->ne[2] != 1) {
         return BEST_FATTN_KERNEL_NONE;
@@ -451,7 +460,7 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
 
     // For small batch sizes the vector kernel may be preferable over the kernels optimized for large batch sizes:
     // 192 satisfies % 64 == 0 but has no vec instance (DKQ != DV); force it onto the MMA path.
-    const bool can_use_vector_kernel = Q->ne[0] <= 256 && Q->ne[0] % 64 == 0 && Q->ne[0] != 192 && K->ne[1] % FATTN_KQ_STRIDE == 0;
+    const bool can_use_vector_kernel = Q->ne[0] <= 256 && Q->ne[0] % 64 == 0 && Q->ne[0] != 192 && K->ne[1] % FATTN_KQ_STRIDE == 0 && v_supports_vec;
 
     // If Turing tensor cores are available, use them:
     if (turing_mma_available(cc) && Q->ne[0] != 40 && Q->ne[0] != 72) {

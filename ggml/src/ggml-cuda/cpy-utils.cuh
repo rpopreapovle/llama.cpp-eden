@@ -153,6 +153,90 @@ static __device__ void quantize_f32_q8_0_block(const float * __restrict__ x, blo
     }
 }
 
+static __device__ void quantize_f32_eden4_block(const float * __restrict__ x, block_eden4 * __restrict__ y) {
+    float sum1 = 0.0f;
+    for (int j = 0; j < QK_EDEN; ++j) {
+        sum1 += x[j] * x[j];
+    }
+    const float rms = sqrtf(sum1 / QK_EDEN);
+    const float irms = rms ? 1.0f/rms : 0.0f;
+
+    // Precomputed Lloyd-Max centroids for N(0,1), 16 levels
+    const float codebook[16] = {
+        -2.2227f, -1.7930f, -1.4570f, -1.1602f,
+        -0.8828f, -0.6191f, -0.3652f, -0.1172f,
+         0.1172f,  0.3652f,  0.6191f,  0.8828f,
+         1.1602f,  1.4570f,  1.7930f,  2.2227f
+    };
+
+    uint8_t idx[QK_EDEN];
+    float sum_q = 0.0f, sum2 = 0.0f;
+    for (int j = 0; j < QK_EDEN; ++j) {
+        const float z = x[j] * irms;
+        int best = 0;
+        float best_d = fabsf(z - codebook[0]);
+        for (int l = 1; l < 16; ++l) {
+            const float d = fabsf(z - codebook[l]);
+            if (d < best_d) { best_d = d; best = l; }
+        }
+        idx[j] = best;
+        const float q = codebook[best];
+        sum_q += z * q;
+        sum2  += q * q;
+    }
+
+    const float S = sum2 > 0.0f ? sum_q / sum2 : 1.0f;
+    y->d = rms * S;
+
+    for (int j = 0; j < QK_EDEN/2; ++j) {
+        y->qs[j] = idx[2*j] | (idx[2*j+1] << 4);
+    }
+}
+
+static __device__ void quantize_f32_eden3_block(const float * __restrict__ x, block_eden3 * __restrict__ y) {
+    float sum1 = 0.0f;
+    for (int j = 0; j < QK_EDEN; ++j) {
+        sum1 += x[j] * x[j];
+    }
+    const float rms = sqrtf(sum1 / QK_EDEN);
+    const float irms = rms ? 1.0f/rms : 0.0f;
+
+    // Precomputed Lloyd-Max centroids for N(0,1), 8 levels
+    const float codebook[8] = {
+        -2.0829f, -1.2597f, -0.7247f, -0.2332f,
+         0.2332f,  0.7247f,  1.2597f,  2.0829f
+    };
+
+    uint8_t idx[QK_EDEN];
+    float sum_q = 0.0f, sum2 = 0.0f;
+    for (int j = 0; j < QK_EDEN; ++j) {
+        const float z = x[j] * irms;
+        int best = 0;
+        float best_d = fabsf(z - codebook[0]);
+        for (int l = 1; l < 8; ++l) {
+            const float d = fabsf(z - codebook[l]);
+            if (d < best_d) { best_d = d; best = l; }
+        }
+        idx[j] = best;
+        const float q = codebook[best];
+        sum_q += z * q;
+        sum2  += q * q;
+    }
+
+    const float S = sum2 > 0.0f ? sum_q / sum2 : 1.0f;
+    y->d = rms * S;
+
+    memset(y->qs, 0, sizeof(y->qs));
+    for (int j = 0; j < QK_EDEN; ++j) {
+        const int byte_idx = (j * 3) / 8;
+        const int bit_off  = (j * 3) % 8;
+        y->qs[byte_idx] |= (idx[j] & 7) << bit_off;
+        if (bit_off > 5) {
+            y->qs[byte_idx + 1] |= (idx[j] & 7) >> (8 - bit_off);
+        }
+    }
+}
+
 static __device__ void quantize_f32_iq4_nl_block(const float * __restrict__ x, block_iq4_nl * __restrict__ y) {
     float amax = 0.0f;
     float vmax = 0.0f;
@@ -209,6 +293,14 @@ static __device__ void cpy_blck_f32_q8_0(const char * cxi, char * cdsti) {
 
 static __device__ void cpy_blck_f32_iq4_nl(const char * cxi, char * cdsti) {
     quantize_f32_iq4_nl_block((const float *)cxi, (block_iq4_nl *)cdsti);
+}
+
+static __device__ void cpy_blck_f32_eden4(const char * cxi, char * cdsti) {
+    quantize_f32_eden4_block((const float *)cxi, (block_eden4 *)cdsti);
+}
+
+static __device__ void cpy_blck_f32_eden3(const char * cxi, char * cdsti) {
+    quantize_f32_eden3_block((const float *)cxi, (block_eden3 *)cdsti);
 }
 
 template<typename src_t, typename dst_t>

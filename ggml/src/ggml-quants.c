@@ -2411,6 +2411,151 @@ void dequantize_row_tq2_0(const block_tq2_0 * GGML_RESTRICT x, float * GGML_REST
     }
 }
 
+// ====================== EDEN quantization (Lloyd-Max + optimal scale)
+
+// Precomputed Lloyd-Max codebooks for N(0,1) distribution (midrise, symmetric)
+// These are the standard Lloyd-Max centroids used by EDEN (ICML 2022)
+static const float eden4_codebook[16] = {
+    -2.2227f, -1.7930f, -1.4570f, -1.1602f,
+    -0.8828f, -0.6191f, -0.3652f, -0.1172f,
+     0.1172f,  0.3652f,  0.6191f,  0.8828f,
+     1.1602f,  1.4570f,  1.7930f,  2.2227f
+};
+
+static const float eden3_codebook[8] = {
+    -2.0829f, -1.2597f, -0.7247f, -0.2332f,
+     0.2332f,  0.7247f,  1.2597f,  2.0829f
+};
+
+void quantize_row_eden4_ref(const float * GGML_RESTRICT x, block_eden4 * GGML_RESTRICT y, int64_t k) {
+    assert(k % QK_EDEN == 0);
+    const int64_t nb = k / QK_EDEN;
+
+    for (int64_t i = 0; i < nb; i++) {
+        float sum1 = 0.0f;
+        for (int j = 0; j < QK_EDEN; j++) {
+            sum1 += x[j] * x[j];
+        }
+        const float rms = sqrtf(sum1 / QK_EDEN);
+        const float irms = rms ? 1.0f/rms : 0.0f;
+
+        uint8_t idx[QK_EDEN];
+        float sum_q = 0.0f, sum2 = 0.0f;
+        for (int j = 0; j < QK_EDEN; j++) {
+            const float z = x[j] * irms;
+            int best = 0;
+            float best_d = fabsf(z - eden4_codebook[0]);
+            for (int l = 1; l < 16; l++) {
+                const float d = fabsf(z - eden4_codebook[l]);
+                if (d < best_d) { best_d = d; best = l; }
+            }
+            idx[j] = best;
+            const float q = eden4_codebook[best];
+            sum_q += z * q;
+            sum2  += q * q;
+        }
+
+        const float S = sum2 > 0.0f ? sum_q / sum2 : 1.0f;
+        y[i].d = GGML_FP32_TO_FP16(rms * S);
+
+        for (int j = 0; j < QK_EDEN/2; j++) {
+            y[i].qs[j] = idx[2*j] | (idx[2*j+1] << 4);
+        }
+        x += QK_EDEN;
+    }
+}
+
+void quantize_row_eden3_ref(const float * GGML_RESTRICT x, block_eden3 * GGML_RESTRICT y, int64_t k) {
+    assert(k % QK_EDEN == 0);
+    const int64_t nb = k / QK_EDEN;
+
+    for (int64_t i = 0; i < nb; i++) {
+        float sum1 = 0.0f;
+        for (int j = 0; j < QK_EDEN; j++) {
+            sum1 += x[j] * x[j];
+        }
+        const float rms = sqrtf(sum1 / QK_EDEN);
+        const float irms = rms ? 1.0f/rms : 0.0f;
+
+        uint8_t idx[QK_EDEN];
+        float sum_q = 0.0f, sum2 = 0.0f;
+        for (int j = 0; j < QK_EDEN; j++) {
+            const float z = x[j] * irms;
+            int best = 0;
+            float best_d = fabsf(z - eden3_codebook[0]);
+            for (int l = 1; l < 8; l++) {
+                const float d = fabsf(z - eden3_codebook[l]);
+                if (d < best_d) { best_d = d; best = l; }
+            }
+            idx[j] = best;
+            const float q = eden3_codebook[best];
+            sum_q += z * q;
+            sum2  += q * q;
+        }
+
+        const float S = sum2 > 0.0f ? sum_q / sum2 : 1.0f;
+        y[i].d = GGML_FP32_TO_FP16(rms * S);
+
+        memset(y[i].qs, 0, sizeof(y[i].qs));
+        for (int j = 0; j < QK_EDEN; j++) {
+            const int byte_idx = (j * 3) / 8;
+            const int bit_off  = (j * 3) % 8;
+            y[i].qs[byte_idx] |= (idx[j] & 7) << bit_off;
+            if (bit_off > 5) {
+                y[i].qs[byte_idx + 1] |= (idx[j] & 7) >> (8 - bit_off);
+            }
+        }
+        x += QK_EDEN;
+    }
+}
+
+size_t quantize_eden4(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
+    (void)quant_weights;
+    const size_t row_size = ggml_row_size(GGML_TYPE_EDEN4, n_per_row);
+    quantize_row_eden4_ref(src, dst, (int64_t)nrow*n_per_row);
+    return nrow * row_size;
+}
+
+size_t quantize_eden3(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
+    (void)quant_weights;
+    const size_t row_size = ggml_row_size(GGML_TYPE_EDEN3, n_per_row);
+    quantize_row_eden3_ref(src, dst, (int64_t)nrow*n_per_row);
+    return nrow * row_size;
+}
+
+void dequantize_row_eden4(const block_eden4 * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
+    assert(k % QK_EDEN == 0);
+    const int64_t nb = k / QK_EDEN;
+
+    for (int64_t i = 0; i < nb; i++) {
+        const float d = GGML_FP16_TO_FP32(x[i].d);
+        for (int j = 0; j < QK_EDEN/2; j++) {
+            const uint8_t byte = x[i].qs[j];
+            y[2*j+0] = d * eden4_codebook[byte & 0xF];
+            y[2*j+1] = d * eden4_codebook[byte >> 4];
+        }
+        y += QK_EDEN;
+    }
+}
+
+void dequantize_row_eden3(const block_eden3 * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
+    assert(k % QK_EDEN == 0);
+    const int64_t nb = k / QK_EDEN;
+
+    for (int64_t i = 0; i < nb; i++) {
+        const float d = GGML_FP16_TO_FP32(x[i].d);
+        for (int j = 0; j < QK_EDEN; j++) {
+            const int byte_idx = (j * 3) / 8;
+            const int bit_off  = (j * 3) % 8;
+            uint16_t word;
+            memcpy(&word, x[i].qs + byte_idx, 2);
+            const uint8_t idx = (word >> bit_off) & 7;
+            y[j] = d * eden3_codebook[idx];
+        }
+        y += QK_EDEN;
+    }
+}
+
 // ====================== "True" 2-bit (de)-quantization
 
 void dequantize_row_iq2_xxs(const block_iq2_xxs * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
@@ -5574,6 +5719,8 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
                 VALIDATE_ROW_DATA_D_F16_IMPL(block_iq4_nl, data, nb);
             } break;
 
+        case GGML_TYPE_EDEN4:
+        case GGML_TYPE_EDEN3:
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
         case GGML_TYPE_I32:

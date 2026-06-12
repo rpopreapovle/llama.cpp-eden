@@ -548,6 +548,58 @@ vec2 get_dm(uint ib, uint a_offset) {
 }
 #endif
 
+#if defined(DATA_A_EDEN4)
+vec2 dequantize(uint ib, uint iqs, uint a_offset) {
+    const uint byte = uint(data_a[a_offset + ib].qs[iqs >> 1u]);
+    const uint idx0 = byte & 0xFu;
+    const uint idx1 = (byte >> 4u) & 0xFu;
+    return vec2(kvalues_eden4[idx0], kvalues_eden4[idx1]);
+}
+
+vec4 dequantize4(uint ib, uint iqs, uint a_offset) {
+    const vec2 v0 = dequantize(ib, iqs, a_offset);
+    const vec2 v1 = dequantize(ib, iqs + 2u, a_offset);
+    return vec4(v0.x, v0.y, v1.x, v1.y);
+}
+#endif
+
+#if defined(DATA_A_EDEN3)
+vec2 dequantize(uint ib, uint iqs, uint a_offset) {
+    const uint i0 = iqs;
+    const uint i1 = iqs + 1u;
+
+    uint byte0 = uint(data_a[a_offset + ib].qs[(i0 * 3u) / 8u]);
+    uint bit0 = (i0 * 3u) % 8u;
+    uint idx0 = (byte0 >> bit0) & 0x7u;
+    if (bit0 > 5u) {
+        idx0 |= uint(data_a[a_offset + ib].qs[(i0 * 3u) / 8u + 1u]) << (8u - bit0);
+        idx0 &= 0x7u;
+    }
+
+    uint byte1 = uint(data_a[a_offset + ib].qs[(i1 * 3u) / 8u]);
+    uint bit1 = (i1 * 3u) % 8u;
+    uint idx1 = (byte1 >> bit1) & 0x7u;
+    if (bit1 > 5u) {
+        idx1 |= uint(data_a[a_offset + ib].qs[(i1 * 3u) / 8u + 1u]) << (8u - bit1);
+        idx1 &= 0x7u;
+    }
+
+    return vec2(kvalues_eden3[idx0], kvalues_eden3[idx1]);
+}
+
+vec4 dequantize4(uint ib, uint iqs, uint a_offset) {
+    const vec2 v0 = dequantize(ib, iqs, a_offset);
+    const vec2 v1 = dequantize(ib, iqs + 2u, a_offset);
+    return vec4(v0.x, v0.y, v1.x, v1.y);
+}
+#endif
+
+#if defined(DATA_A_EDEN4) || defined(DATA_A_EDEN3)
+vec2 get_dm(uint ib, uint a_offset) {
+    return vec2(float(data_a[a_offset + ib].d), 0.0);
+}
+#endif
+
 #if defined(DATA_A_Q4_1) || defined(DATA_A_Q5_1)
 vec2 get_dm(uint ib, uint a_offset) {
     const vec2 dm = vec2(data_a_packed32[a_offset + ib].dm);

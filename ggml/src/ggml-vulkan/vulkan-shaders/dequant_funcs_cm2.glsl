@@ -1301,6 +1301,80 @@ f16vec4 dequantFuncNVFP4_v(const in decodeBufNVFP4 bl, const in uint blockCoords
 }
 #endif
 
+#if defined(DATA_A_EDEN4)
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer decodeBufEDEN4 {
+   block_eden4 block;
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer decodeBufEDEN4_packed32 {
+   block_eden4_packed32 block;
+};
+
+float16_t dequantFuncEDEN4(const in decodeBufEDEN4 bl, const in uint blockCoords[2], const in uint coordInBlock[2])
+{
+    const uint idx = coordInBlock[1];
+    const uint byte = uint(bl.block.qs[idx >> 1u]);
+    const uint code = (byte >> ((idx & 1u) * 4u)) & 0xFu;
+    const float d = float(bl.block.d);
+    return float16_t(kvalues_eden4_const[code] * d);
+}
+
+f16vec4 dequantFuncEDEN4_v(const in decodeBufEDEN4 bl, const in uint blockCoords[2], const in uint coordInBlock[2])
+{
+    decodeBufEDEN4_packed32 bl32 = decodeBufEDEN4_packed32(bl);
+    const uint idx = coordInBlock[1];
+    const uint byte_w = idx >> 3u; // 4 indices packed per uint32_t
+    const uint nibble_shift = (idx & 3u) * 4u;
+    const uint word = uint32_t(bl32.block.qs[byte_w]);
+    const uint codes = (word >> nibble_shift) & 0xFu;
+    // Read next 3 codes from following nibbles
+    const uint codes1 = (word >> (nibble_shift + 4u)) & 0xFu;
+    const uint codes2 = (word >> (nibble_shift + 8u)) & 0xFu;
+    const uint codes3 = (word >> (nibble_shift + 12u)) & 0xFu;
+    const float d = float(bl.block.d);
+    const vec4 ret = vec4(
+        kvalues_eden4_const[codes],
+        kvalues_eden4_const[codes1],
+        kvalues_eden4_const[codes2],
+        kvalues_eden4_const[codes3]) * d;
+    return f16vec4(ret);
+}
+#endif
+
+#if defined(DATA_A_EDEN3)
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer decodeBufEDEN3 {
+   block_eden3 block;
+};
+
+float16_t dequantFuncEDEN3(const in decodeBufEDEN3 bl, const in uint blockCoords[2], const in uint coordInBlock[2])
+{
+    const uint idx = coordInBlock[1];
+    const uint byte_pos = (idx * 3u) / 8u;
+    const uint bit_pos = (idx * 3u) % 8u;
+    uint code = uint(bl.block.qs[byte_pos]) >> bit_pos;
+    if (bit_pos > 5u) {
+        code |= uint(bl.block.qs[byte_pos + 1u]) << (8u - bit_pos);
+    }
+    code &= 0x7u;
+    const float d = float(bl.block.d);
+    return float16_t(kvalues_eden3_const[code] * d);
+}
+
+f16vec4 dequantFuncEDEN3_v(const in decodeBufEDEN3 bl, const in uint blockCoords[2], const in uint coordInBlock[2])
+{
+    uint i0 = coordInBlock[1];
+    uint i1 = i0 + 1u;
+    uint i2 = i0 + 2u;
+    uint i3 = i0 + 3u;
+
+    float16_t v0 = dequantFuncEDEN3(bl, blockCoords, uint[2](coordInBlock[0], i0));
+    float16_t v1 = dequantFuncEDEN3(bl, blockCoords, uint[2](coordInBlock[0], i1));
+    float16_t v2 = dequantFuncEDEN3(bl, blockCoords, uint[2](coordInBlock[0], i2));
+    float16_t v3 = dequantFuncEDEN3(bl, blockCoords, uint[2](coordInBlock[0], i3));
+    return f16vec4(v0, v1, v2, v3);
+}
+#endif
+
 #if defined(DATA_A_Q1_0)
 #define dequantFuncA dequantFuncQ1_0
 #define dequantFuncA_v dequantFuncQ1_0_v
@@ -1371,6 +1445,12 @@ f16vec4 dequantFuncNVFP4_v(const in decodeBufNVFP4 bl, const in uint blockCoords
 #elif defined(DATA_A_NVFP4)
 #define dequantFuncA dequantFuncNVFP4
 #define dequantFuncA_v dequantFuncNVFP4_v
+#elif defined(DATA_A_EDEN4)
+#define dequantFuncA dequantFuncEDEN4
+#define dequantFuncA_v dequantFuncEDEN4_v
+#elif defined(DATA_A_EDEN3)
+#define dequantFuncA dequantFuncEDEN3
+#define dequantFuncA_v dequantFuncEDEN3_v
 #elif defined(DATA_A_F32)
 #define dequantFuncA dequantFuncF32
 #endif

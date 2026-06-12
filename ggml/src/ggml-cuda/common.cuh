@@ -1112,6 +1112,20 @@ struct ggml_cuda_type_traits<GGML_TYPE_IQ3_S> {
     static constexpr int qi = QI3_S;
 };
 
+template<>
+struct ggml_cuda_type_traits<GGML_TYPE_EDEN4> {
+    static constexpr int qk = QK_EDEN;
+    static constexpr int qr = QR_EDEN;
+    static constexpr int qi = QI_EDEN;
+};
+
+template<>
+struct ggml_cuda_type_traits<GGML_TYPE_EDEN3> {
+    static constexpr int qk = QK_EDEN;
+    static constexpr int qr = QR_EDEN;
+    static constexpr int qi = QI_EDEN;
+};
+
 //////////////////////
 
 struct ggml_cuda_device_info {
