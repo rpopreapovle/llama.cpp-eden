@@ -15,7 +15,7 @@ Two new quantization types for the key-value cache:
 | `eden4` | 4 | `GGML_TYPE_EDEN4` | 32 | Lloyd-Max codebook (16 levels) + EDEN-biased optimal scale |
 | `eden3` | 3 | `GGML_TYPE_EDEN3` | 32 | Lloyd-Max codebook (8 levels) + EDEN-biased optimal scale |
 
-Based on [EDEN: Entropy-Driven EvNerating (ICML 2022)](https://arxiv.org/abs/2202.05845).
+Based on [EDEN: Communication-Efficient and Robust Distributed Mean Estimation for Federated Learning (ICML 2022)](https://arxiv.org/abs/2108.08842).
 
 ### Usage
 
@@ -42,6 +42,17 @@ Note: CUDA converts to F16 internally for flash attention.
 | Vulkan  | Yes      | Yes      | Yes             |
 
 `vec_dot` is not implemented (EDEN is intended for value cache, not model weights).
+
+### Comparison with Turboquant
+
+EDEN achieves the same perplexity as [Turboquant](https://github.com/TheTom/llama-cpp-turboquant) with ~80% less code:
+
+| Quantization | PPL (gemma-4-E2B-it-qat-UD-Q4_K_XL) | Relative code size |
+|--------------|---------------------|--------------------|
+| `eden4`      | 1.8049              | ~1x                |
+| `turbo4`     | 1.8062              | ~5x                |
+
+Both methods target 4-bit KV cache quantization. EDEN uses a simple Lloyd-Max codebook with a closed-form optimal scale, while Turboquant employs a more complex iterative optimization.
 
 ---
 
