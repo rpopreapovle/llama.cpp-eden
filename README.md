@@ -27,16 +27,25 @@ llama-server \
   ...
 ```
 
-For K cache with EDEN (CUDA flash attention only, converts to F16 internally):
+For K cache with EDEN:
 ```
   --cache-type-k eden3 --cache-type-v eden3
 ```
+Note: CUDA converts to F16 internally for flash attention.
 
 ### Backend Support
 
 | Backend | get_rows | set_rows | Flash Attention |
 |---------|----------|----------|-----------------|
 | CPU     | Yes      | Yes      | Yes             |
+| CUDA    | Yes      | Yes      | Yes (via F16 conversion) |
+| Vulkan  | Yes      | Yes      | Yes             |
+
+`vec_dot` is not implemented (EDEN is intended for value cache, not model weights).
+
+---
+
+![llama](https://raw.githubusercontent.com/ggml-org/llama.brand/refs/heads/master/cover/llama-cpp/cover-llama-cpp-dark.svg)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Release](https://img.shields.io/github/v/release/ggml-org/llama.cpp)](https://github.com/ggml-org/llama.cpp/releases)

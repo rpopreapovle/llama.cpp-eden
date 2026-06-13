@@ -256,6 +256,84 @@ void quantize(uint dst_idx, uint src_idx)
 }
 #endif
 
+#if defined(DATA_A_EDEN4)
+void quantize(uint dst_idx, uint src_idx)
+{
+    float sum1 = 0.0;
+    [[unroll]] for (int j = 0; j < QUANT_K_EDEN4; ++j) {
+        sum1 += data_s[src_idx + j] * data_s[src_idx + j];
+    }
+    float rms = sqrt(sum1 / QUANT_K_EDEN4);
+    float irms = rms != 0.0 ? 1.0/rms : 0.0;
+
+    uint idx[32];
+    float sum_q = 0.0, sum2 = 0.0;
+    [[unroll]] for (int j = 0; j < QUANT_K_EDEN4; ++j) {
+        float z = data_s[src_idx + j] * irms;
+        int best = 0;
+        float best_d = abs(z - kvalues_eden4[0]);
+        [[unroll]] for (int l = 1; l < 16; ++l) {
+            float d = abs(z - kvalues_eden4[l]);
+            if (d < best_d) { best_d = d; best = l; }
+        }
+        idx[j] = best;
+        float q = kvalues_eden4[best];
+        sum_q += z * q;
+        sum2  += q * q;
+    }
+
+    float S = sum2 > 0.0 ? sum_q / sum2 : 1.0;
+    data_q[dst_idx].d = float16_t(rms * S);
+
+    [[unroll]] for (int j = 0; j < QUANT_K_EDEN4/2; ++j) {
+        data_q[dst_idx].qs[j] = uint8_t(idx[2*j] | (idx[2*j+1] << 4));
+    }
+}
+#endif
+
+#if defined(DATA_A_EDEN3)
+void quantize(uint dst_idx, uint src_idx)
+{
+    float sum1 = 0.0;
+    [[unroll]] for (int j = 0; j < QUANT_K_EDEN3; ++j) {
+        sum1 += data_s[src_idx + j] * data_s[src_idx + j];
+    }
+    float rms = sqrt(sum1 / QUANT_K_EDEN3);
+    float irms = rms != 0.0 ? 1.0/rms : 0.0;
+
+    uint idx[32];
+    float sum_q = 0.0, sum2 = 0.0;
+    [[unroll]] for (int j = 0; j < QUANT_K_EDEN3; ++j) {
+        float z = data_s[src_idx + j] * irms;
+        int best = 0;
+        float best_d = abs(z - kvalues_eden3[0]);
+        [[unroll]] for (int l = 1; l < 8; ++l) {
+            float d = abs(z - kvalues_eden3[l]);
+            if (d < best_d) { best_d = d; best = l; }
+        }
+        idx[j] = best;
+        float q = kvalues_eden3[best];
+        sum_q += z * q;
+        sum2  += q * q;
+    }
+
+    float S = sum2 > 0.0 ? sum_q / sum2 : 1.0;
+    data_q[dst_idx].d = float16_t(rms * S);
+
+    [[unroll]] for (int j = 0; j < (QUANT_K_EDEN3 * 3 + 7) / 8; ++j) {
+        data_q[dst_idx].qs[j] = uint8_t(0);
+    }
+    [[unroll]] for (int j = 0; j < QUANT_K_EDEN3; ++j) {
+        int byte_idx = (j * 3) / 8;
+        int bit_off  = (j * 3) % 8;
+        data_q[dst_idx].qs[byte_idx] |= uint8_t((idx[j] & 7u) << bit_off);
+        if (bit_off > 5) {
+            data_q[dst_idx].qs[byte_idx + 1] |= uint8_t((idx[j] & 7u) >> (8 - bit_off));
+        }
+    }
+}
+#endif
+
 #if defined(DATA_A_F32) || defined(DATA_A_F16)
 void quantize(uint dst_idx, uint src_idx)
 {

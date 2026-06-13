@@ -5179,6 +5179,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
     ggml_vk_create_pipeline(device, device->pipeline_cpy_f32_quant[GGML_TYPE_Q5_1], "cpy_f32_q5_1", cpy_f32_q5_1_len, cpy_f32_q5_1_data, "main", 2, sizeof(vk_op_unary_push_constants), {32, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_cpy_f32_quant[GGML_TYPE_Q8_0], "cpy_f32_q8_0", cpy_f32_q8_0_len, cpy_f32_q8_0_data, "main", 2, sizeof(vk_op_unary_push_constants), {32, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_cpy_f32_quant[GGML_TYPE_IQ4_NL], "cpy_f32_iq4_nl", cpy_f32_iq4_nl_len, cpy_f32_iq4_nl_data, "main", 2, sizeof(vk_op_unary_push_constants), {32, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_cpy_f32_quant[GGML_TYPE_EDEN4], "cpy_f32_eden4", cpy_f32_eden4_len, cpy_f32_eden4_data, "main", 2, sizeof(vk_op_unary_push_constants), {32, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_cpy_f32_quant[GGML_TYPE_EDEN3], "cpy_f32_eden3", cpy_f32_eden3_len, cpy_f32_eden3_data, "main", 2, sizeof(vk_op_unary_push_constants), {32, 1, 1}, {}, 1);
 
 #define SET_ROWS(itype) \
         ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_F32],  "set_rows_f32" #itype,  set_rows_f32 ## itype ## _len,  set_rows_f32 ## itype ## _data,  "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true); \
@@ -5190,7 +5192,9 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
         ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_Q5_0], "set_rows_q5_0" #itype, set_rows_q5_0 ## itype ## _len, set_rows_q5_0 ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true); \
         ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_Q5_1], "set_rows_q5_1" #itype, set_rows_q5_1 ## itype ## _len, set_rows_q5_1 ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true); \
         ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_Q8_0], "set_rows_q8_0" #itype, set_rows_q8_0 ## itype ## _len, set_rows_q8_0 ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true); \
-        ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_IQ4_NL], "set_rows_iq4_nl" #itype, set_rows_iq4_nl ## itype ## _len, set_rows_iq4_nl ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true);
+        ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_IQ4_NL], "set_rows_iq4_nl" #itype, set_rows_iq4_nl ## itype ## _len, set_rows_iq4_nl ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true); \
+        ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_EDEN4], "set_rows_eden4" #itype, set_rows_eden4 ## itype ## _len, set_rows_eden4 ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true); \
+        ggml_vk_create_pipeline(device, device->pipeline_set_rows ## itype [GGML_TYPE_EDEN3], "set_rows_eden3" #itype, set_rows_eden3 ## itype ## _len, set_rows_eden3 ## itype ## _data, "main", 3, sizeof(vk_op_binary_push_constants), {1, 1, 1}, {1}, 1, true);
 
     SET_ROWS(_i32)
     SET_ROWS(_i64)
@@ -5204,6 +5208,8 @@ static void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
     ggml_vk_create_pipeline(device, device->pipeline_cpy_quant_f32[GGML_TYPE_Q5_1], "cpy_q5_1_f32", cpy_q5_1_f32_len, cpy_q5_1_f32_data, "main", 2, sizeof(vk_op_unary_push_constants), {(uint32_t)ggml_blck_size(GGML_TYPE_Q5_1), 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_cpy_quant_f32[GGML_TYPE_Q8_0], "cpy_q8_0_f32", cpy_q8_0_f32_len, cpy_q8_0_f32_data, "main", 2, sizeof(vk_op_unary_push_constants), {(uint32_t)ggml_blck_size(GGML_TYPE_Q8_0), 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_cpy_quant_f32[GGML_TYPE_IQ4_NL], "cpy_iq4_nl_f32", cpy_iq4_nl_f32_len, cpy_iq4_nl_f32_data, "main", 2, sizeof(vk_op_unary_push_constants), {(uint32_t)ggml_blck_size(GGML_TYPE_IQ4_NL), 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_cpy_quant_f32[GGML_TYPE_EDEN4], "cpy_eden4_f32", cpy_eden4_f32_len, cpy_eden4_f32_data, "main", 2, sizeof(vk_op_unary_push_constants), {(uint32_t)ggml_blck_size(GGML_TYPE_EDEN4), 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_cpy_quant_f32[GGML_TYPE_EDEN3], "cpy_eden3_f32", cpy_eden3_f32_len, cpy_eden3_f32_data, "main", 2, sizeof(vk_op_unary_push_constants), {(uint32_t)ggml_blck_size(GGML_TYPE_EDEN3), 1, 1}, {}, 1);
 
     auto get_suffix = [](bool src0_f16, bool src1_f16, bool dst_f16) {
         std::string s;
@@ -17355,23 +17361,25 @@ static bool ggml_backend_vk_device_supports_op(ggml_backend_dev_t dev, const ggm
                 if (op->src[3] && op->src[3]->type != GGML_TYPE_F16) {
                     return false;
                 }
-                auto fa_kv_ok = [coopmat2](ggml_type t) {
-                    switch (t) {
-                    case GGML_TYPE_F32:
-                    case GGML_TYPE_F16:
-                    case GGML_TYPE_BF16:
-                    case GGML_TYPE_Q8_0:
-                    case GGML_TYPE_Q5_1:
-                    case GGML_TYPE_Q5_0:
-                    case GGML_TYPE_Q4_1:
-                    case GGML_TYPE_Q4_0:
-                        return true;
-                    case GGML_TYPE_Q1_0:
-                        return coopmat2;
-                    default:
-                        return false;
-                    }
-                };
+                 auto fa_kv_ok = [coopmat2](ggml_type t) {
+                     switch (t) {
+                     case GGML_TYPE_F32:
+                     case GGML_TYPE_F16:
+                     case GGML_TYPE_BF16:
+                     case GGML_TYPE_Q8_0:
+                     case GGML_TYPE_Q5_1:
+                     case GGML_TYPE_Q5_0:
+                     case GGML_TYPE_Q4_1:
+                     case GGML_TYPE_Q4_0:
+                     case GGML_TYPE_EDEN4:
+                     case GGML_TYPE_EDEN3:
+                         return true;
+                     case GGML_TYPE_Q1_0:
+                         return coopmat2;
+                     default:
+                         return false;
+                     }
+                 };
                 if (!fa_kv_ok(op->src[1]->type) || !fa_kv_ok(op->src[2]->type)) {
                     return false;
                 }
@@ -17423,23 +17431,25 @@ static bool ggml_backend_vk_device_supports_op(ggml_backend_dev_t dev, const ggm
         case GGML_OP_GET_ROWS_BACK:
             return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32;
         case GGML_OP_SET_ROWS:
-            {
-                switch (op->type) {
-                    case GGML_TYPE_F32:
-                    case GGML_TYPE_F16:
-                    case GGML_TYPE_BF16:
-                    case GGML_TYPE_Q1_0:
-                    case GGML_TYPE_Q4_0:
-                    case GGML_TYPE_Q4_1:
-                    case GGML_TYPE_Q5_0:
-                    case GGML_TYPE_Q5_1:
-                    case GGML_TYPE_Q8_0:
-                    case GGML_TYPE_IQ4_NL:
-                        return true;
-                    default:
-                        return false;
-                }
-            }
+             {
+                 switch (op->type) {
+                     case GGML_TYPE_F32:
+                     case GGML_TYPE_F16:
+                     case GGML_TYPE_BF16:
+                     case GGML_TYPE_Q1_0:
+                     case GGML_TYPE_Q4_0:
+                     case GGML_TYPE_Q4_1:
+                     case GGML_TYPE_Q5_0:
+                     case GGML_TYPE_Q5_1:
+                     case GGML_TYPE_Q8_0:
+                     case GGML_TYPE_IQ4_NL:
+                     case GGML_TYPE_EDEN4:
+                     case GGML_TYPE_EDEN3:
+                         return true;
+                     default:
+                         return false;
+                 }
+             }
         case GGML_OP_CONT:
         case GGML_OP_CPY:
         case GGML_OP_DUP:
@@ -17448,38 +17458,42 @@ static bool ggml_backend_vk_device_supports_op(ggml_backend_dev_t dev, const ggm
                 ggml_type src1_type = op->src[1] != nullptr ? op->src[1]->type : src0_type;
 
                 if (src0_type == GGML_TYPE_F32) {
-                    switch (src1_type) {
-                    case GGML_TYPE_F32:
-                    case GGML_TYPE_F16:
-                    case GGML_TYPE_BF16:
-                    case GGML_TYPE_Q1_0:
-                    case GGML_TYPE_Q4_0:
-                    case GGML_TYPE_Q4_1:
-                    case GGML_TYPE_Q5_0:
-                    case GGML_TYPE_Q5_1:
-                    case GGML_TYPE_Q8_0:
-                    case GGML_TYPE_IQ4_NL:
-                        return true;
-                    default:
-                        break;
-                    }
-                }
-                if (src1_type == GGML_TYPE_F32) {
-                    switch (src0_type) {
-                    case GGML_TYPE_F16:
-                    case GGML_TYPE_BF16:
-                    case GGML_TYPE_Q1_0:
-                    case GGML_TYPE_Q4_0:
-                    case GGML_TYPE_Q4_1:
-                    case GGML_TYPE_Q5_0:
-                    case GGML_TYPE_Q5_1:
-                    case GGML_TYPE_Q8_0:
-                    case GGML_TYPE_IQ4_NL:
-                        return true;
-                    default:
-                        break;
-                    }
-                }
+                     switch (src1_type) {
+                     case GGML_TYPE_F32:
+                     case GGML_TYPE_F16:
+                     case GGML_TYPE_BF16:
+                     case GGML_TYPE_Q1_0:
+                     case GGML_TYPE_Q4_0:
+                     case GGML_TYPE_Q4_1:
+                     case GGML_TYPE_Q5_0:
+                     case GGML_TYPE_Q5_1:
+                     case GGML_TYPE_Q8_0:
+                     case GGML_TYPE_IQ4_NL:
+                     case GGML_TYPE_EDEN4:
+                     case GGML_TYPE_EDEN3:
+                         return true;
+                     default:
+                         break;
+                     }
+                 }
+                 if (src1_type == GGML_TYPE_F32) {
+                     switch (src0_type) {
+                     case GGML_TYPE_F16:
+                     case GGML_TYPE_BF16:
+                     case GGML_TYPE_Q1_0:
+                     case GGML_TYPE_Q4_0:
+                     case GGML_TYPE_Q4_1:
+                     case GGML_TYPE_Q5_0:
+                     case GGML_TYPE_Q5_1:
+                     case GGML_TYPE_Q8_0:
+                     case GGML_TYPE_IQ4_NL:
+                     case GGML_TYPE_EDEN4:
+                     case GGML_TYPE_EDEN3:
+                         return true;
+                     default:
+                         break;
+                     }
+                 }
 
                 if (src0_type == GGML_TYPE_F16 && src1_type == GGML_TYPE_F16) {
                     return true;
