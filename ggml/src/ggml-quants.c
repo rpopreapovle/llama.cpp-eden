@@ -2547,10 +2547,11 @@ void dequantize_row_eden3(const block_eden3 * GGML_RESTRICT x, float * GGML_REST
         for (int j = 0; j < QK_EDEN; j++) {
             const int byte_idx = (j * 3) / 8;
             const int bit_off  = (j * 3) % 8;
-            uint16_t word;
-            memcpy(&word, x[i].qs + byte_idx, 2);
-            const uint8_t idx = (word >> bit_off) & 7;
-            y[j] = d * eden3_codebook[idx];
+            uint8_t val = x[i].qs[byte_idx] >> bit_off;
+            if (bit_off > 5) {
+                val |= x[i].qs[byte_idx + 1] << (8 - bit_off);
+            }
+            y[j] = d * eden3_codebook[val & 7];
         }
         y += QK_EDEN;
     }

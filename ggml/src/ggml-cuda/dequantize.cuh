@@ -135,9 +135,11 @@ static __device__ __forceinline__ void dequantize_eden3(const void * vx, const i
     auto extract = [&](int pos) -> uint8_t {
         const int byte_idx = (pos * 3) / 8;
         const int bit_off  = (pos * 3) % 8;
-        uint16_t word;
-        memcpy(&word, x[ib].qs + byte_idx, sizeof(uint16_t));
-        return (word >> bit_off) & 7;
+        uint8_t val = x[ib].qs[byte_idx] >> bit_off;
+        if (bit_off > 5) {
+            val |= x[ib].qs[byte_idx + 1] << (8 - bit_off);
+        }
+        return val & 7;
     };
 
     v.x = d * codebook[extract(iqs)];
