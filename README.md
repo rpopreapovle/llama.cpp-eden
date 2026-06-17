@@ -35,14 +35,30 @@ Note: CUDA converts to F16 internally for flash attention.
 
 ### Backend Support
 
-| Backend | get_rows | set_rows | vec_dot | Flash Attention |
-|---------|----------|----------|---------|-----------------|
-| CPU     | Yes      | Yes      | Yes     | Yes             |
-| CUDA    | Yes      | Yes      | Yes (eden4 via dp4a, eden3 via float) | Yes (via F16 conversion) |
-| Vulkan  | Yes      | Yes      | Yes     | Yes             |
+| Backend | Target devices | get_rows | set_rows | vec_dot | Flash Attention |
+|---------|---------------|----------|----------|---------|-----------------|
+| CPU     | All | Yes | Yes | Yes | Yes |
+| CUDA    | Nvidia GPU | Yes | Yes | Yes | Yes |
+| HIP     | AMD GPU | Yes | Yes | Yes | Yes |
+| Vulkan  | GPU | Yes | Yes | Yes | Yes |
+| Metal   | Apple Silicon | No | No | No | No |
+| BLAS    | All | No | No | No | No |
+| SYCL    | Intel GPU | No | No | No | No |
+| OpenCL  | Adreno GPU | No | No | No | No |
+| MUSA    | Moore Threads GPU | No | No | No | No |
+| OpenVINO | Intel CPU/GPU/NPU | No | No | No | No |
+| CANN    | Ascend NPU | No | No | No | No |
+| WebGPU  | All | No | No | No | No |
+| RPC     | All | No | No | No | No |
+| ZenDNN  | AMD CPU | No | No | No | No |
+| BLIS    | All | No | No | No | No |
+| IBM zDNN | IBM Z & LinuxONE | No | No | No | No |
+| Hexagon | Snapdragon | No | No | No | No |
+| VirtGPU | VirtGPU API | No | No | No | No |
 
 Note: vec_dot on CUDA uses `__dp4a` for eden4 (table lookup + int8 dp4a) and direct float dequant for eden3.
 MMQ and FATTN direct paths are not yet implemented for EDEN types on CUDA (fall back to generic paths).
+OpenCL, SYCL, and Metal backends lack EDEN type support entirely - CUDA is the primary GPU target.
 
 ### Comparison with Turboquant
 
