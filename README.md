@@ -35,13 +35,14 @@ Note: CUDA converts to F16 internally for flash attention.
 
 ### Backend Support
 
-| Backend | get_rows | set_rows | Flash Attention |
-|---------|----------|----------|-----------------|
-| CPU     | Yes      | Yes      | Yes             |
-| CUDA    | Yes      | Yes      | Yes (via F16 conversion) |
-| Vulkan  | Yes      | Yes      | Yes             |
+| Backend | get_rows | set_rows | vec_dot | Flash Attention |
+|---------|----------|----------|---------|-----------------|
+| CPU     | Yes      | Yes      | Yes     | Yes             |
+| CUDA    | Yes      | Yes      | Yes (eden4 via dp4a, eden3 via float) | Yes (via F16 conversion) |
+| Vulkan  | Yes      | Yes      | Yes     | Yes             |
 
-`vec_dot` is not implemented (EDEN is intended for value cache, not model weights).
+Note: vec_dot on CUDA uses `__dp4a` for eden4 (table lookup + int8 dp4a) and direct float dequant for eden3.
+MMQ and FATTN direct paths are not yet implemented for EDEN types on CUDA (fall back to generic paths).
 
 ### Comparison with Turboquant
 

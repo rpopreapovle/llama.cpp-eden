@@ -1138,6 +1138,16 @@ GGML_TABLE_BEGIN(int8_t, kvalues_mxfp4, 16)
     0, 1, 2, 3, 4, 6, 8, 12, 0, -1, -2, -3, -4, -6, -8, -12,
 GGML_TABLE_END()
 
+// EDEN4 Lloyd-Max codebook scaled to int8 (scale = 57)
+GGML_TABLE_BEGIN(int8_t, kvalues_eden4, 16)
+    -127, -102, -83, -66, -50, -35, -21, -7, 7, 21, 35, 50, 66, 83, 102, 127,
+GGML_TABLE_END()
+
+// EDEN3 Lloyd-Max codebook scaled to int8 (scale = 61), duplicated for 16-entry table
+GGML_TABLE_BEGIN(int8_t, kvalues_eden3, 16)
+    -127, -77, -44, -14, 14, 44, 77, 127, -127, -77, -44, -14, 14, 44, 77, 127,
+GGML_TABLE_END()
+
 #define NGRID_IQ1S 2048
 #define IQ1S_DELTA 0.125f
 #define IQ1M_DELTA 0.125f

@@ -1264,8 +1264,68 @@ static __device__ __forceinline__ float vec_dot_iq1_m_q8_1(
     return d * ((sumi[0] + sumf[0]) * sc0 + (sumi[1] + sumf[1]) * sc1);
 }
 
+#define VDR_EDEN4_Q8_1_MMVQ 2
+#define VDR_EDEN4_Q8_1_MMQ  4
+
+#define VDR_EDEN3_Q8_1_MMVQ 1
+#define VDR_EDEN3_Q8_1_MMQ  2
+
 #define VDR_IQ4_NL_Q8_1_MMVQ 2
 #define VDR_IQ4_NL_Q8_1_MMQ  4
+
+static __device__ __forceinline__ float vec_dot_eden4_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_eden4 * bq4 = (const block_eden4 *) vbq + kbx;
+
+    const int * q8 = (const int *) bq8_1->qs + iqs;
+
+    int sumi = 0;
+#pragma unroll
+    for (int l = 0; l < VDR_EDEN4_Q8_1_MMVQ; ++l) {
+        const int aux_q4 = get_int_b2(bq4->qs, iqs + l);
+        const int2 v = get_int_from_table_16(aux_q4, kvalues_eden4);
+
+        sumi = ggml_cuda_dp4a(v.x, q8[l + 0], sumi);
+        sumi = ggml_cuda_dp4a(v.y, q8[l + 4], sumi);
+    }
+
+    const float d = __half2float(bq4->d) * __low2float(bq8_1->ds) * (1.0f / 57.0f);
+    return d * sumi;
+}
+
+static __device__ __forceinline__ float vec_dot_eden3_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_eden3 * bq3 = (const block_eden3 *) vbq + kbx;
+
+    const float d = __half2float(bq3->d);
+
+    const float codebook[8] = {
+        -2.0829f, -1.2597f, -0.7247f, -0.2332f,
+         0.2332f,  0.7247f,  1.2597f,  2.0829f
+    };
+
+    float sumf = 0.0f;
+    const int start = iqs;
+    const int end   = start + VDR_EDEN3_Q8_1_MMVQ * QI_EDEN;
+
+#pragma unroll
+    for (int j = start; j < end; ++j) {
+        const int byte_idx = (j * 3) / 8;
+        const int bit_off  = (j * 3) % 8;
+        uint8_t idx = bq3->qs[byte_idx] >> bit_off;
+        if (bit_off > 5) {
+            idx |= bq3->qs[byte_idx + 1] << (8 - bit_off);
+        }
+        idx &= 7;
+
+        const int8_t q8_val = ((const int8_t *)bq8_1->qs)[j];
+        sumf += (float)q8_val * codebook[idx];
+    }
+
+    return d * __low2float(bq8_1->ds) * sumf;
+}
 
 static __device__ __forceinline__ float vec_dot_iq4_nl_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
